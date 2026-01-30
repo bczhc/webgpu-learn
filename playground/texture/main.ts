@@ -1,22 +1,26 @@
 import shader from "./main.wgsl?raw";
-import {getImageRawData, joinedPrimitivesIndexBuffer} from "../utils";
+import {generateMipmaps, getImageRawData, joinedPrimitivesIndexBuffer} from "../utils";
 import GUI from "muigui";
 import img from '../../res/container.jpg';
 
 let settings = {
     magFilter: 'nearest',
+    minFilter: 'nearest',
     texture: '1',
     scale: 0.5,
     samplingTransform: '1',
     speed: 0.1,
+    useMipmaps: 0,
 };
 
 let gui = new GUI();
 gui.add(settings, 'magFilter', ['linear', 'nearest']);
+gui.add(settings, 'minFilter', ['linear', 'nearest']);
 gui.add(settings, 'texture', ['1', '2']);
 gui.add(settings, 'scale', 0, 1);
 gui.add(settings, 'samplingTransform', ['1', '2']);
 gui.add(settings, 'speed', 0, 1);
+gui.add(settings, 'useMipmaps', [0, 1]);
 
 let fnPanel = {
     smallMovingDemo: () => {
@@ -118,6 +122,7 @@ fnGui.add(fnPanel, 'smallMovingDemo');
     let t = 0;
 
     async function render() {
+        let useMipmap = settings.useMipmaps === 1;
         let textureData: TextureData | null = null;
         if (settings.texture == '1') {
             textureData = createTexture1();
@@ -125,7 +130,10 @@ fnGui.add(fnPanel, 'smallMovingDemo');
             textureData = await createTexture2();
         }
         if (textureData === null) return;
+
+        let mipmaps = generateMipmaps(textureData.data, textureData.width, textureData.height);
         let texture = device.createTexture({
+            mipLevelCount: useMipmap ? mipmaps.length : undefined,
             size: [textureData.width, textureData.height],
             format: 'rgba8unorm',
             usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
@@ -133,8 +141,10 @@ fnGui.add(fnPanel, 'smallMovingDemo');
 
         let sampler = device.createSampler({
             magFilter: settings.magFilter as GPUFilterMode,
+            minFilter: settings.minFilter as GPUFilterMode,
             addressModeU: 'clamp-to-edge',
             addressModeV: 'clamp-to-edge',
+            mipmapFilter: 'linear',
         });
         let bindGroup = device.createBindGroup({
             layout: pipeline.getBindGroupLayout(0),
@@ -157,14 +167,21 @@ fnGui.add(fnPanel, 'smallMovingDemo');
                 },
             ],
         });
+
         device.queue.writeBuffer(vertexBuffer, 0, vertexData);
         device.queue.writeBuffer(indexBuffer, 0, indexBufferData);
-        device.queue.writeTexture(
-            {texture},
-            textureData.data as GPUAllowSharedBufferSource,
-            {bytesPerRow: textureData.width * 4},
-            {width: textureData.width, height: textureData.height},
-        );
+        for (let level = 0; level < (useMipmap ? mipmaps.length : 1); level++) {
+            device.queue.writeTexture(
+                {
+                    texture,
+                    mipLevel: level,
+                },
+                // @ts-ignore
+                mipmaps[level].data,
+                {bytesPerRow: mipmaps[level].width * 4},
+                {width: mipmaps[level].width, height: mipmaps[level].height},
+            );
+        }
 
         let dx = Math.sin(t);
         let scale = settings.scale;
