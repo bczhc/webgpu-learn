@@ -16,11 +16,22 @@ var samp: sampler;
 @group(0) @binding(1)
 var tex: texture_2d<f32>;
 
+// size: 16
+struct TransformInfo {
+    offset: vec2f,
+    scale: f32,
+    samplingMode: u32,
+}
+
+@group(0) @binding(2)
+var<storage, read> t_info: TransformInfo;
+
 @vertex
 fn vs(@builtin(vertex_index) _index: u32, vertex: Vertex)
  -> VsOut {
-    let pos = vec4f(vertex.pos, 0.0, 1.0);
-    return VsOut(pos, pos.xy);
+    let pos = vec4f(vertex.pos * t_info.scale + t_info.offset, 0.0, 1.0);
+    let samp_coord = select(vertex.pos, pos.xy, t_info.samplingMode == 2);
+    return VsOut(pos, samp_coord);
 }
 
 @fragment

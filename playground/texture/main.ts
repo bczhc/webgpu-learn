@@ -3,14 +3,37 @@ import {getImageRawData, joinedPrimitivesIndexBuffer} from "../utils";
 import GUI from "muigui";
 import img from '../../res/container.jpg';
 
-let guiParam = {
+let settings = {
     magFilter: 'nearest',
     texture: '1',
+    scale: 0.5,
+    samplingTransform: '1',
+    speed: 0.1,
 };
 
 let gui = new GUI();
-gui.add(guiParam, 'magFilter', ['linear', 'nearest']);
-gui.add(guiParam, 'texture', ['1', '2']);
+gui.add(settings, 'magFilter', ['linear', 'nearest']);
+gui.add(settings, 'texture', ['1', '2']);
+gui.add(settings, 'scale', 0, 1);
+gui.add(settings, 'samplingTransform', ['1', '2']);
+gui.add(settings, 'speed', 0, 1);
+
+let fnPanel = {
+    smallMovingDemo: () => {
+        Object.assign(settings, {
+            magFilter: 'nearest',
+            texture: '2',
+            scale: 0.02,
+            samplingTransform: '1',
+            speed: 0.01,
+        });
+        gui.updateDisplay();
+    }
+};
+
+let fnGui = new GUI();
+Object.assign(fnGui.domElement.style, {right: '', top: `${gui.domElement.clientHeight}px`});
+fnGui.add(fnPanel, 'smallMovingDemo');
 
 (async () => {
     let canvas = document.querySelector('canvas')!!;
@@ -85,11 +108,20 @@ gui.add(guiParam, 'texture', ['1', '2']);
         mappedAtCreation: false,
     });
 
+    let transformStorageData = new ArrayBuffer(16);
+    let transformStorage = device.createBuffer({
+        size: transformStorageData.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+        mappedAtCreation: false,
+    });
+
+    let t = 0;
+
     async function render() {
         let textureData: TextureData | null = null;
-        if (guiParam.texture == '1') {
+        if (settings.texture == '1') {
             textureData = createTexture1();
-        } else if (guiParam.texture == '2') {
+        } else if (settings.texture == '2') {
             textureData = await createTexture2();
         }
         if (textureData === null) return;
@@ -100,7 +132,7 @@ gui.add(guiParam, 'texture', ['1', '2']);
         });
 
         let sampler = device.createSampler({
-            magFilter: guiParam.magFilter as GPUFilterMode,
+            magFilter: settings.magFilter as GPUFilterMode,
             addressModeU: 'clamp-to-edge',
             addressModeV: 'clamp-to-edge',
         });
@@ -109,6 +141,7 @@ gui.add(guiParam, 'texture', ['1', '2']);
             entries: [
                 {binding: 0, resource: sampler},
                 {binding: 1, resource: texture},
+                {binding: 2, resource: transformStorage},
             ]
         });
 
@@ -133,6 +166,12 @@ gui.add(guiParam, 'texture', ['1', '2']);
             {width: textureData.width, height: textureData.height},
         );
 
+        let dx = Math.sin(t);
+        let scale = settings.scale;
+        new Float32Array(transformStorageData, 0, 3).set([dx, 0.0, scale]);
+        new Uint32Array(transformStorageData, 12, 1).set([parseInt(settings.samplingTransform)]);
+        device.queue.writeBuffer(transformStorage, 0, transformStorageData);
+
         pass.setPipeline(pipeline);
         pass.setVertexBuffer(0, vertexBuffer);
         pass.setIndexBuffer(indexBuffer, 'uint32');
@@ -142,9 +181,10 @@ gui.add(guiParam, 'texture', ['1', '2']);
 
         let commandBuffer = encoder.finish();
         device.queue.submit([commandBuffer]);
+        t += 0.02 * settings.speed * 4;
+        requestAnimationFrame(render);
     }
 
-    gui.onChange(render);
     await render();
 })();
 
