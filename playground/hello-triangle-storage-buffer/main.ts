@@ -51,22 +51,26 @@ const rand = (min: number, max: number) => {
         }
     })
 
-    function createEntities() {
-        let entities = [];
-        for (let i = 0; i < 50; i++) {
-            let staticBuffer = device.createBuffer({
-                size: 4,
-                mappedAtCreation: false,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-            });
-            let changingBuffer = device.createBuffer({
-                size: 32,
-                mappedAtCreation: false,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-            });
-            let staticBufferData = new Float32Array(1);
-            let changingBufferData = new Float32Array(8);
+    const OBJECT_COUNT: number = 100;
 
+    function createBuffersForEntities() {
+        let staticBufferSize = 4 /* align: 4 */ * OBJECT_COUNT;
+        let changingBufferSize = 32 /* align: 16 */ * OBJECT_COUNT;
+        let staticBuffer = device.createBuffer({
+            size: staticBufferSize,
+            mappedAtCreation: false,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+        });
+        let changingBuffer = device.createBuffer({
+            size: changingBufferSize,
+            mappedAtCreation: false,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+        });
+        let staticBufferData = new Float32Array(staticBufferSize / 4);
+        let changingBufferData = new Float32Array(changingBufferSize / 4);
+
+        // write data to the two 'unified' buffers
+        for (let i = 0; i < OBJECT_COUNT; i++) {
             let offset = [rand(-1, 1), rand(-1, 1)];
             let color = [
                 rand(0, 1),
@@ -74,37 +78,35 @@ const rand = (min: number, max: number) => {
                 rand(0, 1),
                 1
             ];
-            staticBufferData.set([0.4 /* scale */]);
-            changingBufferData.set(color, 0);
-            changingBufferData.set(offset, 4);
-
-            let bindGroup = device.createBindGroup({
-                layout: pipeline.getBindGroupLayout(0),
-                label: 'bind group 0',
-                entries: [
-                    {
-                        binding: 0,
-                        resource: staticBuffer,
-                    },
-                    {
-                        binding: 1,
-                        resource: changingBuffer,
-                    }
-                ]
-            });
-
-            entities.push({
-                bindGroup,
-                staticBuffer,
-                staticBufferData,
-                changingBuffer,
-                changingBufferData,
-            });
+            staticBufferData.set([0.4 /* scale */], i);
+            changingBufferData.set(color, i * 8);
+            changingBufferData.set(offset, i * 8 + 4);
         }
-        return entities;
+
+        let bindGroup = device.createBindGroup({
+            layout: pipeline.getBindGroupLayout(0),
+            label: 'bind group 0',
+            entries: [
+                {
+                    binding: 0,
+                    resource: staticBuffer,
+                },
+                {
+                    binding: 1,
+                    resource: changingBuffer,
+                }
+            ]
+        });
+        return {
+            bindGroup,
+            staticBuffer,
+            staticBufferData,
+            changingBuffer,
+            changingBufferData,
+        }
     }
 
-    let entities = createEntities();
+    let storageBuffers = createBuffersForEntities();
 
     function render() {
         let encoder = device.createCommandEncoder();
@@ -120,14 +122,11 @@ const rand = (min: number, max: number) => {
             ],
         });
         pass.setPipeline(pipeline);
-
-        // pick different storage buffer on each draw
-        for (let entity of entities) {
-            device.queue.writeBuffer(entity.staticBuffer, 0, entity.staticBufferData);
-            device.queue.writeBuffer(entity.changingBuffer, 0, entity.changingBufferData);
-            pass.setBindGroup(0, entity.bindGroup);
-            pass.draw(3);
-        }
+        device.queue.writeBuffer(storageBuffers.staticBuffer, 0, storageBuffers.staticBufferData);
+        device.queue.writeBuffer(storageBuffers.changingBuffer, 0, storageBuffers.changingBufferData);
+        pass.setBindGroup(0, storageBuffers.bindGroup);
+        // Draw 100 objects with a single `draw` call!
+        pass.draw(3, OBJECT_COUNT);
 
         pass.end()
 
