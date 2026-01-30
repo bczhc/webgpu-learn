@@ -26,7 +26,7 @@ import {rand} from "../utils";
                 {
                     // slot 0
                     stepMode: 'vertex',
-                    arrayStride: 5 * 4,
+                    arrayStride: 12,
                     attributes: [
                         {
                             shaderLocation: 0,
@@ -36,7 +36,7 @@ import {rand} from "../utils";
                         {
                             shaderLocation: 1,
                             offset: 2 * 4,
-                            format: 'float32x3',
+                            format: 'unorm8x4',
                         }
                     ]
                 },
@@ -66,23 +66,18 @@ import {rand} from "../utils";
     });
 
     const OBJECT_COUNT = 10;
-    const BASIC_VERTEX_DATA = [
-        0, 0.5, 1, 0, 0,
-        -0.5, -0.5, 0, 1, 0,
-        0.5, -0.5, 0, 0, 1,
-    ];
-    // let vertexData = new Float32Array(BASIC_VERTEX_DATA.length * OBJECT_COUNT);
-    // for (let i = 0; i < OBJECT_COUNT; i++) {
-    //     let cloned = BASIC_VERTEX_DATA.slice();
-    //     for (let j = 0; j < cloned.length; j++) {
-    //         cloned[j] += rand(-1, 1);
-    //     }
-    //     vertexData.set(cloned.slice(0, 5), 15 * i);
-    //     vertexData.set(cloned.slice(5, 10), 15 * i + 5);
-    //     vertexData.set(cloned.slice(10, 15), 15 * i + 10);
-    // }
-    let vertexData = new Float32Array(BASIC_VERTEX_DATA);
 
+    // row layout: (pos: vec2f, color: unorm8x4)
+    let vertexData = new ArrayBuffer(12 * 3);
+    // 我是小丑。
+    new Float32Array(vertexData, 0, 2).set([0, 0.5]);
+    new Float32Array(vertexData, 12, 2).set([-0.5, -0.5]);
+    new Float32Array(vertexData, 24, 2).set([0.5, -0.5]);
+    new Uint8Array(vertexData, 0 * 12 + 8, 4).set([255,0,0,255]);
+    new Uint8Array(vertexData, 1 * 12 + 8, 4).set([0,255,0,255]);
+    new Uint8Array(vertexData, 2 * 12 + 8, 4).set([0, 0, 255, 255]);
+
+    console.log(new Uint8Array(vertexData));
     let vertexBuffer = device.createBuffer({
         size: vertexData.byteLength,
         usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
