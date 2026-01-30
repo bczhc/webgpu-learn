@@ -94,6 +94,7 @@ const rand = (min: number, max: number) => {
                 -0.5, -0.5, 1,
                 0.5, -0.5, 1
             ];
+            // randomize a bit
             for (let j = 0; j < vertices.length; j++) {
                 vertices[j] += rand(0, 0.5);
             }
