@@ -1,11 +1,56 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="zh-CN">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + TS</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGPU 学习工作台</title>
+    <style>
+        #nav-list { list-style: none; padding: 0; }
+        .nav-item { margin: 10px 0; }
+        .nav-link {
+            color: #42b883;
+            text-decoration: none;
+            font-size: 1.1rem;
+            transition: 0.2s;
+        }
+        .nav-link:hover { color: #5eead4; text-decoration: underline; }
+    </style>
 </head>
 <body>
-Index page
+
+<ul id="nav-list">
+</ul>
+
+<script type="module">
+    // 1. 定义项目名称数组 (对应你的文件夹名)
+    const demos = [
+        'hello-triangle',
+        'hello-triangle-rgb',
+        'hello-triangle-fragment-position',
+        'hello-triangle-uniforms',
+        'hello-triangle-storage-buffer',
+    ];
+
+    // 2. 获取容器
+    const container = document.getElementById('nav-list');
+
+    // 3. 动态生成 HTML
+    demos.forEach(name => {
+        const li = document.createElement('li');
+        li.className = 'nav-item';
+
+        // 构造指向 playground/文件夹名/index.html 的路径
+        const url = `./playground/${name}/index.html`;
+
+        // 格式化一下显示的名字 (去掉连字符，首字母大写)
+        // const displayName = name.split('-').map(word =>
+        //     word.charAt(0).toUpperCase() + word.slice(1)
+        // ).join(' ');
+        const displayName = name;
+
+        li.innerHTML = `<a class="nav-link" href="${url}">${displayName}</a>`;
+        container.appendChild(li);
+    });
+</script>
 </body>
 </html>
