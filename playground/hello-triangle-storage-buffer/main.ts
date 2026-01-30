@@ -66,8 +66,14 @@ const rand = (min: number, max: number) => {
             mappedAtCreation: false,
             usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
         });
+        let vertexBuffer = device.createBuffer({
+            size: (9 * OBJECT_COUNT) * 4,
+            mappedAtCreation: false,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+        });
         let staticBufferData = new Float32Array(staticBufferSize / 4);
         let changingBufferData = new Float32Array(changingBufferSize / 4);
+        let vertexBufferData = new Float32Array(9 * OBJECT_COUNT);
 
         // write data to the two 'unified' buffers
         for (let i = 0; i < OBJECT_COUNT; i++) {
@@ -81,6 +87,17 @@ const rand = (min: number, max: number) => {
             staticBufferData.set([0.4 /* scale */], i);
             changingBufferData.set(color, i * 8);
             changingBufferData.set(offset, i * 8 + 4);
+
+            // each row is (x, y, z)
+            let vertices = [
+                0, 0.5, 1,
+                -0.5, -0.5, 1,
+                0.5, -0.5, 1
+            ];
+            for (let j = 0; j < vertices.length; j++) {
+                vertices[j] += rand(0, 0.5);
+            }
+            vertexBufferData.set(vertices, i * 9);
         }
 
         let bindGroup = device.createBindGroup({
@@ -94,6 +111,10 @@ const rand = (min: number, max: number) => {
                 {
                     binding: 1,
                     resource: changingBuffer,
+                },
+                {
+                    binding: 2,
+                    resource: vertexBuffer,
                 }
             ]
         });
@@ -103,6 +124,8 @@ const rand = (min: number, max: number) => {
             staticBufferData,
             changingBuffer,
             changingBufferData,
+            vertexBuffer,
+            vertexBufferData,
         }
     }
 
@@ -124,6 +147,7 @@ const rand = (min: number, max: number) => {
         pass.setPipeline(pipeline);
         device.queue.writeBuffer(storageBuffers.staticBuffer, 0, storageBuffers.staticBufferData);
         device.queue.writeBuffer(storageBuffers.changingBuffer, 0, storageBuffers.changingBufferData);
+        device.queue.writeBuffer(storageBuffers.vertexBuffer, 0, storageBuffers.vertexBufferData);
         pass.setBindGroup(0, storageBuffers.bindGroup);
         // Draw 100 objects with a single `draw` call!
         pass.draw(3, OBJECT_COUNT);

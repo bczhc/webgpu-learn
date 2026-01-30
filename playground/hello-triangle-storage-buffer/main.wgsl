@@ -25,19 +25,24 @@ var<storage, read> static_storage: array<StaticStorage>;
 @group(0) @binding(1)
 var<storage, read> changing_storage: array<ChangingStorage>;
 
+// Use a compact layout in favor of the JS code convenience.
+// view: array<array<array<f32, 3>, 3>>
+@group(0) @binding(2)
+var<storage, read> vertex_storage: array<array<f32, 9>>;
+
 @vertex
 fn vs(@builtin(vertex_index) index: u32, @builtin(instance_index) instance: u32)
 -> VsOut {
-    let pos = array(
-        vec2f(0.0, 0.5),
-        vec2f(-0.5, -0.5),
-        vec2f(0.5, -0.5),
+    let vertex_instance = vertex_storage[instance];
+    let vertex = vec3f(
+        vertex_instance[index * 3],
+        vertex_instance[index * 3 + 1],
+        vertex_instance[index * 3 + 2],
     );
+    let scaled_vertex = vertex * static_storage[instance].scale;
+    let offset_vertex = scaled_vertex + vec3f(changing_storage[instance].offset.xy, 0);
 
-    let pos2 = (pos[index] * static_storage[instance].scale)
-        + changing_storage[instance].offset;
-
-    let out_pos = vec4f(pos2, 0.0, 1.0);
+    let out_pos = vec4f(offset_vertex.xyz, 1.0);
     return VsOut(out_pos, changing_storage[instance].color);
 }
 
