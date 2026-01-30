@@ -1,6 +1,18 @@
 import shader from "./main.wgsl?raw";
 import {joinedPrimitivesIndexBuffer} from "../utils";
 
+function createCircleVertices(innerRadius: number, radius: number, divisions: number) {
+    let verticesData = [];
+    let step = 2 * Math.PI / divisions;
+    for (let r = 0; r <= 2 * Math.PI; r += step) {
+        let point = [Math.cos(r), Math.sin(r)];
+        let innerVertex = point.map(x => x * innerRadius);
+        let outerVertex = point.map(x => x * radius);
+        verticesData.push(...innerVertex, ...outerVertex);
+    }
+    return new Float32Array(verticesData);
+}
+
 (async () => {
     let canvas = document.querySelector('canvas')!!;
     let context = canvas.getContext('webgpu');
@@ -54,19 +66,14 @@ import {joinedPrimitivesIndexBuffer} from "../utils";
         }
     })
 
-    let vertexData = new Float32Array([
-        -0.5, -0.5,
-        -0.5, 0.5,
-        0.5, -0.5,
-        0.5, 0.5,
-    ]);
+    let vertexData = createCircleVertices(0.3, 0.5, 100);
     let vertexBuffer = device.createBuffer({
         size: vertexData.byteLength,
         usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
         mappedAtCreation: false,
     });
 
-    let indexBufferData = joinedPrimitivesIndexBuffer(4);
+    let indexBufferData = joinedPrimitivesIndexBuffer(vertexData.length);
     let indexBuffer = device.createBuffer({
         size: indexBufferData.byteLength,
         usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
@@ -91,7 +98,7 @@ import {joinedPrimitivesIndexBuffer} from "../utils";
         device.queue.writeBuffer(indexBuffer, 0, indexBufferData);
         pass.setVertexBuffer(0, vertexBuffer);
         pass.setIndexBuffer(indexBuffer, 'uint32');
-        pass.drawIndexed(6)
+        pass.drawIndexed(indexBufferData.length)
         pass.end()
 
         let commandBuffer = encoder.finish();
