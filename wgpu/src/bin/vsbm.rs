@@ -4,7 +4,7 @@
 
 use bytemuck::{Pod, Zeroable};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use std::{env, iter};
 use wgpu::{Backend, Backends, InstanceDescriptor};
 use winit::application::ApplicationHandler;
@@ -32,6 +32,26 @@ struct Uniforms {
     padding5: f32,
 }
 
+struct FpsCounter {
+    instant: Instant,
+    counter: usize,
+}
+
+impl FpsCounter {
+    fn new() -> Self {
+        Self {
+            instant: Instant::now(),
+            counter: 0,
+        }
+    }
+
+    fn hint_and_get(&mut self) -> (Duration, f32) {
+        self.counter += 1;
+        let duration = self.instant.elapsed();
+        (duration, (self.counter as f64 / duration.as_secs_f64()) as f32)
+    }
+}
+
 struct State {
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
@@ -43,6 +63,7 @@ struct State {
     start_time: Instant,
     window: Arc<Window>,
     surface_format: wgpu::TextureFormat,
+    fps_counter: Option<FpsCounter>,
 }
 
 impl State {
@@ -180,6 +201,7 @@ impl State {
             start_time: Instant::now(),
             window: saved_window,
             surface_format,
+            fps_counter: None,
         }
     }
 
@@ -294,6 +316,17 @@ impl State {
 
         self.queue.submit(iter::once(encoder.finish()));
         surface_texture.present();
+
+        // calculate the FPS
+        if let Some(f) = &mut self.fps_counter {
+            let (d, fps) = f.hint_and_get();
+            if d.as_secs_f64() > 1.0 {
+                println!("FPS: {}", fps);
+                self.fps_counter = Some(FpsCounter::new());
+            }
+        } else {
+            self.fps_counter = Some(FpsCounter::new());
+        }
         Ok(())
     }
 }
