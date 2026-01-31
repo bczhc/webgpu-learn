@@ -11,8 +11,8 @@ let settings = {
     scale: 0.5,
     samplingTransform: '1',
     speed: 0.1,
-    useMipmaps: 0,
-    overlayTexture: 0,
+    useMipmaps: false,
+    overlayTexture: false,
 };
 
 let gui = new GUI();
@@ -22,8 +22,8 @@ gui.add(settings, 'texture', ['1', '2']);
 gui.add(settings, 'scale', 0, 1);
 gui.add(settings, 'samplingTransform', ['1', '2']);
 gui.add(settings, 'speed', 0, 1);
-gui.add(settings, 'useMipmaps', [0, 1]);
-gui.add(settings, 'overlayTexture', [0, 1]);
+gui.add(settings, 'useMipmaps');
+gui.add(settings, 'overlayTexture');
 
 let fnPanel = {
     smallMovingDemo: () => {
@@ -125,7 +125,7 @@ fnGui.add(fnPanel, 'smallMovingDemo');
     let t = 0;
 
     async function render() {
-        let useMipmap = settings.useMipmaps === 1;
+        let useMipmap = settings.useMipmaps;
         let textureData: TextureData | null = null;
         if (settings.texture == '1') {
             textureData = createTexture1();
@@ -197,7 +197,7 @@ fnGui.add(fnPanel, 'smallMovingDemo');
         let scale = settings.scale;
         new Float32Array(storageData, 0, 3).set([dx, 0.0, scale]);
         new Uint32Array(storageData, 12, 1).set([parseInt(settings.samplingTransform)]);
-        new Uint32Array(storageData, 16, 1).set([settings.overlayTexture]);
+        new Uint32Array(storageData, 16, 1).set([+settings.overlayTexture]);
         device.queue.writeBuffer(storageBuffer, 0, storageData);
         device.queue.writeTexture(
             {texture: overlayTexture},
