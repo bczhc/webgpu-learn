@@ -1,22 +1,19 @@
 #![feature(decl_macro)]
 
-use std::time::Instant;
 use bytemuck::cast_slice;
 use bytemuck::checked::cast_slice_mut;
-use rand::rngs::OsRng;
-use rand::{Rng, TryRngCore};
+use rand::Rng;
+use std::time::Instant;
 use tokio::sync::oneshot;
 use wgpu::wgt::PollType;
-use wgpu::{
-    include_wgsl, BindGroup, BindGroupDescriptor, BindGroupEntry, BindingResource, Buffer,
-    BufferBinding, BufferDescriptor, BufferUsages, ComputePipeline, ComputePipelineDescriptor, Device,
-    Instance, MapMode, Queue,
-};
+use wgpu::{include_wgsl, BindGroup, BindGroupDescriptor, BindGroupEntry, BindingResource, Buffer, BufferBinding, BufferDescriptor, BufferUsages, ComputePipeline, ComputePipelineDescriptor, Device, Instance, MapMode, PipelineCompilationOptions, Queue};
 use wgpu_playground::set_up_logger;
 
 macro default() {
     Default::default()
 }
+
+const WORKGROUP_SIZE: usize = 256;
 
 struct State {
     device: Device,
@@ -33,13 +30,18 @@ impl State {
         let adapter = instance.request_adapter(&default!()).await?;
         let (device, queue) = adapter.request_device(&default!()).await?;
 
-        let shader_module = device.create_shader_module(include_wgsl!("../shaders/compute.wgsl"));
+        let shader_module = device.create_shader_module(include_wgsl!("../shaders/compute-demo.wgsl"));
         let pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
             label: None,
             layout: None,
             module: &shader_module,
             entry_point: None,
-            compilation_options: Default::default(),
+            compilation_options: PipelineCompilationOptions {
+                constants: &[
+                    ("WORKGROUP_SIZE", WORKGROUP_SIZE as f64)
+                ],
+                zero_initialize_workgroup_memory: false,
+            },
             cache: None,
         });
 
@@ -116,11 +118,9 @@ impl State {
     }
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    set_up_logger();
-
-    const DATA_LENGTH: usize = 65535;
+async fn boring_stress_test() -> anyhow::Result<()> {
+    const DATA_LENGTH: usize = 100_000;
+    const WORKGROUP_COUNT: usize = (DATA_LENGTH + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE; /* =ceil(DATA_LENGTH / WORKGROUP_SIZE) */
     let mut input = vec![0_f32; DATA_LENGTH];
     let mut result = vec![0_f32; DATA_LENGTH];
     let state = State::new(input.len() as u64 * 4).await?;
@@ -130,12 +130,19 @@ async fn main() -> anyhow::Result<()> {
         let instant = Instant::now();
         input.iter_mut().for_each(|x| *x = rng.random());
         state.write_work_buffer(cast_slice(&input));
-        state.compute_dispatch((input.len() as u32, 1, 1));
+        state.compute_dispatch((WORKGROUP_COUNT as u32, 1, 1));
         state.read_result(cast_slice_mut(&mut result)).await?;
         let duration = instant.elapsed();
         // println!("Input: {:?}, Output: {:?}", &input[..5], &result[..5]);
         println!("Duration: {:?}", duration);
     }
+}
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    set_up_logger();
+
+    boring_stress_test().await?;
 
     Ok(())
 }
