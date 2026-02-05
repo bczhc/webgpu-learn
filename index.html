@@ -22,30 +22,8 @@
 </ul>
 
 <script type="module">
-    // 1. 定义项目名称数组 (对应你的文件夹名)
-    const demos = [
-        'hello-triangle',
-        'triangle-rgb',
-        'triangle-fragment-position',
-        'triangle-uniforms',
-        'triangle-storage-buffer',
-        'triangle-rgb-vertex-buffer',
-        'triangle-vertex-buffer2',
-        'hello-rectangle',
-        'hello-circle',
-        'circle-gradient',
-        'triangle-rotating',
-        'texture',
-        'compute',
-        'texture-display-grid',
-        'storage-texture-read-after-write-glitch',
-        'storage-texture-write-in-compute-shader',
-    ];
-
-    // 2. 获取容器
+    import {demos} from "./catalog.js";
     const container = document.getElementById('nav-list');
-
-    // 3. 动态生成 HTML
     demos.forEach(name => {
         const li = document.createElement('li');
         li.className = 'nav-item';
