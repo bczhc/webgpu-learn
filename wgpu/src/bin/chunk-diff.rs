@@ -17,6 +17,7 @@ use wgpu::{
     BufferBinding, BufferDescriptor, BufferUsages, ComputePipeline, ComputePipelineDescriptor, Device,
     Instance, MapMode, PipelineCompilationOptions, Queue,
 };
+use wgpu_playground::wgpu_instance_with_env_backend;
 
 macro default() {
     Default::default()
@@ -41,7 +42,7 @@ impl State {
         if pix_buf_len % 4 != 0 {
             return Err(anyhow::anyhow!("pix_buf_len requires a multiple of 4"));
         }
-        let instance = Instance::default();
+        let instance = wgpu_instance_with_env_backend();
         let adapter = instance.request_adapter(&default!()).await?;
         let (device, queue) = adapter.request_device(&default!()).await?;
 

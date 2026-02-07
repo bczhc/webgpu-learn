@@ -9,6 +9,7 @@ use winit::{
 };
 use glam::{Mat4, Vec3, Quat};
 use wgpu::TextureFormat;
+use wgpu_playground::wgpu_instance_with_env_backend;
 
 fn parse_raw_data() -> Vec<f64> {
     let text = include_str!("../../data/webgpu-bg-data.txt");
@@ -82,7 +83,7 @@ struct InstanceInfo {
 impl State {
     async fn new(window: Arc<Window>) -> Self {
         let size = window.inner_size();
-        let instance = wgpu::Instance::default();
+        let instance = wgpu_instance_with_env_backend();
         let surface = instance.create_surface(window.clone()).unwrap();
         let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::HighPerformance,

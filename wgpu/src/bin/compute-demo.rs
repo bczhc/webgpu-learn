@@ -7,7 +7,7 @@ use std::time::Instant;
 use tokio::sync::oneshot;
 use wgpu::wgt::PollType;
 use wgpu::{include_wgsl, BindGroup, BindGroupDescriptor, BindGroupEntry, BindingResource, Buffer, BufferBinding, BufferDescriptor, BufferUsages, ComputePipeline, ComputePipelineDescriptor, Device, Instance, MapMode, PipelineCompilationOptions, Queue};
-use wgpu_playground::set_up_logger;
+use wgpu_playground::{set_up_logger, wgpu_instance_with_env_backend};
 
 macro default() {
     Default::default()
@@ -26,7 +26,7 @@ struct State {
 
 impl State {
     async fn new(work_buffer_size: u64) -> anyhow::Result<Self> {
-        let instance = Instance::default();
+        let instance = wgpu_instance_with_env_backend();
         let adapter = instance.request_adapter(&default!()).await?;
         let (device, queue) = adapter.request_device(&default!()).await?;
 

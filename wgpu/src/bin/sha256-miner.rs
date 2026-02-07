@@ -6,15 +6,12 @@ use std::time::Instant;
 use tokio::sync::oneshot;
 use wgpu::wgt::PollType;
 use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupEntry, BindingResource, Buffer, BufferBinding,
-    BufferDescriptor, BufferUsages, ComputePipeline, ComputePipelineDescriptor, Device, Instance,
-    MapMode, PipelineCompilationOptions, Queue, ShaderModuleDescriptor, ShaderSource,
+    Backends, BindGroup, BindGroupDescriptor, BindGroupEntry, BindingResource, Buffer,
+    BufferBinding, BufferDescriptor, BufferUsages, ComputePipeline, ComputePipelineDescriptor,
+    Device, Instance, InstanceDescriptor, MapMode, PipelineCompilationOptions, Queue,
+    ShaderModuleDescriptor, ShaderSource,
 };
-use wgpu_playground::set_up_logger;
-
-macro default() {
-    Default::default()
-}
+use wgpu_playground::{default, wgpu_instance_with_env_backend, set_up_logger};
 
 /// Sha256 buffer type the shader uses.
 type FatSha256Buf = [u32; SHA256_BYTES];
@@ -59,7 +56,7 @@ struct State {
 
 impl State {
     async fn new(args: &Args) -> anyhow::Result<Self> {
-        let instance = Instance::default();
+        let instance = wgpu_instance_with_env_backend();
         let adapter = instance.request_adapter(&default!()).await?;
         let (device, queue) = adapter.request_device(&default!()).await?;
 

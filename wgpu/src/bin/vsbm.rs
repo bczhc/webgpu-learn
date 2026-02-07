@@ -14,6 +14,7 @@ use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
 };
+use wgpu_playground::wgpu_instance_with_env_backend;
 
 // --- Uniform 数据结构 (必须符合 WGSL 的 16 字节对齐) ---
 #[repr(C)]
@@ -89,7 +90,7 @@ impl State {
     async fn new(display: OwnedDisplayHandle, window: Arc<Window>) -> Self {
         let saved_window = Arc::clone(&window);
         let size = window.inner_size();
-        let instance = wgpu::Instance::default();
+        let instance = wgpu_instance_with_env_backend();
         let surface = instance.create_surface(window).unwrap();
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {

@@ -10,6 +10,7 @@ use wgpu::{
     BufferBinding, BufferDescriptor, BufferUsages, ComputePipeline, ComputePipelineDescriptor, Device,
     Instance, MapMode, PipelineCompilationOptions, Queue,
 };
+use wgpu_playground::wgpu_instance_with_env_backend;
 
 macro default() {
     Default::default()
@@ -26,7 +27,7 @@ struct State {
 
 impl State {
     async fn new(work_buffer_size: u64) -> anyhow::Result<Self> {
-        let instance = Instance::default();
+        let instance = wgpu_instance_with_env_backend();
         let adapter = instance.request_adapter(&default!()).await?;
         let (device, queue) = adapter.request_device(&default!()).await?;
 

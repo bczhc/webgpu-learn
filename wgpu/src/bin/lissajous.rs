@@ -17,6 +17,7 @@ use winit::{
     window::{Window, WindowId},
 };
 use winit::keyboard::{Key, NamedKey, PhysicalKey};
+use wgpu_playground::wgpu_instance_with_env_backend;
 
 struct State {
     elapsed: PausableTimeElapse,
@@ -36,7 +37,7 @@ impl State {
         // let instance = wgpu::Instance::new(
         //     wgpu::InstanceDescriptor::default().with_display_handle(Box::new(display)),
         // );
-        let instance = Instance::default();
+        let instance = wgpu_instance_with_env_backend();
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
