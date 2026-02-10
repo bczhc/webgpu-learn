@@ -3,15 +3,15 @@
 use bytemuck::{cast_slice, cast_slice_mut};
 use std::process::exit;
 use std::time::Instant;
+use anyhow::anyhow;
 use tokio::sync::oneshot;
 use wgpu::wgt::PollType;
 use wgpu::{
-    Backends, BindGroup, BindGroupDescriptor, BindGroupEntry, BindingResource, Buffer,
-    BufferBinding, BufferDescriptor, BufferUsages, ComputePipeline, ComputePipelineDescriptor,
-    Device, Instance, InstanceDescriptor, MapMode, PipelineCompilationOptions, Queue,
-    ShaderModuleDescriptor, ShaderSource,
+    BindGroup, BindGroupDescriptor, BindGroupEntry, BindingResource, Buffer, BufferBinding,
+    BufferDescriptor, BufferUsages, ComputePipeline, ComputePipelineDescriptor, Device, MapMode,
+    PipelineCompilationOptions, Queue, ShaderModuleDescriptor, ShaderSource,
 };
-use wgpu_playground::{default, wgpu_instance_with_env_backend, set_up_logger};
+use wgpu_playground::{default, set_up_logger, wgpu_instance_with_env_backend};
 
 /// Sha256 buffer type the shader uses.
 type FatSha256Buf = [u32; SHA256_BYTES];
@@ -22,6 +22,7 @@ const INPUT_SIZE: usize = 32;
 const BLOCK_BUFFER_IN_SHADER: u64 = size_of::<FatSha256Buf>() as _;
 
 use clap::Parser;
+use num_format::{Locale, ToFormattedString};
 use sha2::Digest;
 
 #[derive(Parser, Debug)]
@@ -42,6 +43,10 @@ struct Args {
     /// Target difficulty in bits
     #[arg(short, long, default_value_t = 32)]
     difficulty: u32,
+
+    /// The start hex data (in hex string).
+    #[arg(long)]
+    start: Option<String>,
 }
 
 struct State {
@@ -272,16 +277,33 @@ async fn main() -> anyhow::Result<()> {
 
     println!("Args: {:?}", args);
 
+    let arg_start = hex::decode(args.start.as_ref().map(|x| x.as_str()).unwrap_or_default())?;
+    if arg_start.len() > 32 {
+        return Err(anyhow!("Length of `start` must be <= 32"));
+    }
+
     let state = State::new(&args).await?;
     let mut input_data = [0_u8; INPUT_SIZE];
+    input_data[..arg_start.len()].copy_from_slice(&arg_start);
     let mut result = [0_u32; SHA256_BYTES];
     let mut counter = 0_usize;
     let start = Instant::now();
+    let mut hashes = 0_u64;
     loop {
-        println!("dispatch: {}, start: {}", counter, hex::encode(input_data));
+        println!(
+            "dispatch: {}, start: {}, elapsed: {:?}, hashes: {}, hashrate: {} H/s",
+            counter,
+            hex::encode(input_data),
+            start.elapsed(),
+            hashes.to_formatted_string(&Locale::en),
+            ((hashes as f64 / start.elapsed().as_secs_f64()).round() as u64)
+                .to_formatted_string(&Locale::en)
+        );
         state.write_input_data(&input_data);
         state.compute_dispatch(args.dispatch_x);
-        add_big_int(&mut input_data, runs_per_dispatch * args.iterations);
+        let hashes_computed = runs_per_dispatch * args.iterations;
+        hashes += hashes_computed as u64;
+        add_big_int(&mut input_data, hashes_computed);
         state.read_result(cast_slice_mut(&mut result)).await?;
         if result.iter().any(|x| *x != 0) {
             print_result_and_exit(result, start);
