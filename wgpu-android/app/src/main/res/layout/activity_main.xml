@@ -35,11 +35,17 @@
                 android:text="Sha256 Miner" />
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSelectAnimation"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:id="@+id/btnSelectAnimation"
                 android:text="Select Animation" />
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvFps"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="FPS: " />
 
         <!--        <com.google.android.material.button.MaterialButton-->
         <!--            android:id="@+id/btnUpdateSurface"-->

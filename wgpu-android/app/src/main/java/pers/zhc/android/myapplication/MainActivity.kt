@@ -4,17 +4,21 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.Choreographer
 import android.view.SurfaceHolder
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import pers.zhc.android.myapplication.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
+    private lateinit var tvFps: TextView
     private lateinit var appendLog: (line: String) -> Unit
 
     // address of the underlying JNI object
     private var addr: Long = 0
 
     private val defaultAnimation = JNI.Animations.ROTATING_TRIANGLE
+
+    private var lastFrameTimeNanos: Long = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,6 +37,7 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
         bindings.sha256MinerBtn.setOnClickListener {
             startActivity(Intent(this, Sha256MinerActivity::class.java))
         }
+        tvFps = bindings.tvFps
         bindings.btnSelectAnimation.setOnClickListener {
             val animations = JNI.Animations.entries.toTypedArray()
             val items = animations.map { it.name }.toTypedArray()
@@ -60,6 +65,14 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
             override fun doFrame(frameTimeNanos: Long) {
                 if (addr != 0L) {
                     JNI.frame(addr)
+
+                    if (lastFrameTimeNanos != 0L) {
+                        val diffNanos = frameTimeNanos - lastFrameTimeNanos
+                        // 1s = 1,000,000,000ns
+                        val fps = 1_000_000_000.0 / diffNanos
+                        tvFps.text = String.format("FPS: %.1f", fps)
+                    }
+                    lastFrameTimeNanos = frameTimeNanos
                 }
                 Choreographer.getInstance().postFrameCallback(this)
             }
