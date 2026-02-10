@@ -61,7 +61,7 @@ struct SHA256_CTX {
       m[i] = ((*ctx).data[j] << 24) | ((*ctx).data[j + 1] << 16) | ((*ctx).data[j + 2] << 8) | ((*ctx).data[j + 3]);
       i++;
       j += 4;
-    }            
+    }
 
     while(i < 64) {
           m[i] = SIG1(m[i - 2]) + m[i - 7] + SIG0(m[i - 15]) + m[i - 16];
@@ -110,7 +110,7 @@ struct SHA256_CTX {
       (*ctx).datalen++;
       if ((*ctx).datalen == 64) {
         sha256_transform(ctx);
-        
+
         if ((*ctx).bitlen[0] > 0xffffffff - (512)){
           (*ctx).bitlen[1]++;
         }
@@ -146,7 +146,7 @@ struct SHA256_CTX {
         (*ctx).data[i] = 0;
       }
     }
-  
+
     if ((*ctx).bitlen[0] > 0xffffffff - (*ctx).datalen * 8) {
       (*ctx).bitlen[1]++;
     }
@@ -162,7 +162,7 @@ struct SHA256_CTX {
     (*ctx).data[57] = (*ctx).bitlen[1] >> 16;
     (*ctx).data[56] = (*ctx).bitlen[1] >> 24;
     sha256_transform(ctx);
-  
+
     for (i = 0; i < 4; i++) {
       (*hash)[i] = ((*ctx).state[0] >> (24 - i * 8)) & 0x000000ff;
       (*hash)[i + 4] = ((*ctx).state[1] >> (24 - i * 8)) & 0x000000ff;
@@ -190,14 +190,11 @@ struct SHA256_CTX {
     (*ctx).state[7] = 0x5be0cd19;
   }
 
-fn add_big_int_local(p_data: ptr<function, array<u32, 32>>, n: u32) {
+fn set_local_input_with_offset(p_data: ptr<function, array<u32, SHA256_BLOCK_SIZE>>, n: u32) {
     var carry = n;
-    
+
     for (var i = 0u; i < 32u; i++) {
-        if (carry == 0u) { break; }
-        
-        // 解引用并修改局部变量的值
-        let sum = (*p_data)[i] + carry;
+        let sum = start[i] + carry;
         (*p_data)[i] = sum & 255u;
         carry = sum >> 8u;
     }
@@ -206,14 +203,12 @@ fn add_big_int_local(p_data: ptr<function, array<u32, 32>>, n: u32) {
 @compute @workgroup_size(WORKGROUP_SIZE)
 fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     let _r = result[0];
-    
+
     for (var i = 0u; i < ITERATIONS_PER_THREAD; i += 1) {
       let addition = i * RUNS_PER_DISPATCH + global_id.x;
       var this_input: array<u32, SHA256_BLOCK_SIZE>;
-      for (var j = 0u; j < INPUT_SIZE; j += 1) {
-        this_input[j] = start[j];
-      }
-      add_big_int_local(&this_input, addition);
+
+      set_local_input_with_offset(&this_input, addition);
       var ctx : SHA256_CTX;
       sha256_init(&ctx);
       var buf : array<u32, SHA256_BLOCK_SIZE>;
