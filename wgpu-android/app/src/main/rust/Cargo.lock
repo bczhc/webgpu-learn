@@ -61,6 +61,7 @@ dependencies = [
  "log",
  "ndk-sys",
  "num-format",
+ "once_cell",
  "oneshot",
  "pollster",
  "rand",

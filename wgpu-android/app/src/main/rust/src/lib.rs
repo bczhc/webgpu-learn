@@ -5,15 +5,18 @@ mod compute_demo;
 mod hello_triangle;
 mod sha256_miner;
 
+use crate::hello_triangle::State;
 use jni::objects::{JClass, JObject};
 use jni::sys::{jint, jstring};
 use jni::JNIEnv;
 use log::{debug, error, info, LevelFilter};
+use once_cell::sync::Lazy;
 use raw_window_handle::{
     AndroidNdkWindowHandle, DisplayHandle, HasDisplayHandle, HasWindowHandle, RawDisplayHandle,
     RawWindowHandle, WindowHandle,
 };
 use std::ptr::NonNull;
+use std::sync::Mutex;
 use wgpu::{Instance, SurfaceTarget};
 
 pub macro default() {
@@ -29,7 +32,7 @@ pub extern "system" fn Java_pers_zhc_android_myapplication_JNI_initLogger(
     android_logger::init_once(
         android_logger::Config::default()
             .with_tag("Android wgpu demo")
-            .with_max_level(LevelFilter::Trace),
+            .with_max_level(LevelFilter::Info),
     );
     info!("Android logger initialized.");
 }
@@ -60,7 +63,10 @@ impl HasDisplayHandle for AndroidWindow {
     }
 }
 
+unsafe impl Send for AndroidWindow {}
 unsafe impl Sync for AndroidWindow {}
+
+static STATE: Lazy<Mutex<Option<State>>> = Lazy::new(|| default!());
 
 #[unsafe(no_mangle)]
 #[allow(non_snake_case)]
@@ -69,11 +75,9 @@ pub extern "system" fn Java_pers_zhc_android_myapplication_JNI_initWgpu(
     _c: JClass,
     surface: JObject,
 ) {
-    debug!("initWgpu called");
+    info!("initWgpu called");
 
     unsafe {
-        // 1. 获取原生窗口指针
-        // 注意：这里需要确保 ndk_sys 的版本与你的 NDK 对应
         let window_ptr =
             ndk_sys::ANativeWindow_fromSurface(env.get_native_interface(), surface.as_raw());
         let width = ndk_sys::ANativeWindow_getWidth(window_ptr);
@@ -84,10 +88,6 @@ pub extern "system" fn Java_pers_zhc_android_myapplication_JNI_initWgpu(
             return; // 或者抛出 Java 异常
         }
 
-        // 2. 封装为 wgpu 可识别的 Surface
-        // wgpu 现在通常配合 raw-window-handle 使用
-        // 你需要保存这个 window_ptr，并在之后使用 wgpu::Instance::create_surface
-
         let android_window = AndroidWindow {
             native_window: window_ptr,
             width: width as _,
@@ -95,33 +95,33 @@ pub extern "system" fn Java_pers_zhc_android_myapplication_JNI_initWgpu(
         };
 
         pollster::block_on(async {
-            hello_triangle::show(android_window).await.unwrap();
+            let state = State::new(android_window).await.unwrap();
+            *STATE.lock().unwrap() = Some(state);
         });
-
-        // 这里的逻辑通常是：
-        // a. 将 window_ptr 封装进一个自定义的结构体
-        // b. 使用 wgpu::SurfaceTarget::from_native_and_custom_window 创建 surface
-
-        // ⚠️ 重要：当你不再需要 surface 时，必须执行：
-        // ndk_sys::ANativeWindow_release(window_ptr);
     }
 }
 
 #[unsafe(no_mangle)]
 #[allow(non_snake_case)]
 pub extern "system" fn Java_pers_zhc_android_myapplication_JNI_resize(
-    env: JNIEnv,
+    _env: JNIEnv,
     _c: JClass,
     width: jint,
     height: jint,
 ) {
-    debug!("resize called");
+    info!("resize called");
+    let mut guard = STATE.lock().unwrap();
+    let state = guard.as_mut().unwrap();
+    state.update_size((width as _, height as _));
+    state.configure_surface();
 }
 
 #[unsafe(no_mangle)]
 #[allow(non_snake_case)]
-pub extern "system" fn Java_pers_zhc_android_myapplication_JNI_cleanup(env: JNIEnv, _c: JClass) {
-    debug!("cleanup called");
+pub extern "system" fn Java_pers_zhc_android_myapplication_JNI_cleanup(_env: JNIEnv, _c: JClass) {
+    info!("cleanup called");
+    let mut guard = STATE.lock().unwrap();
+    *guard = None;
 }
 
 #[unsafe(no_mangle)]
@@ -133,4 +133,13 @@ pub extern "system" fn Java_pers_zhc_android_myapplication_JNI_simpleCompute(
     let result = compute_demo::compute();
     let result = pollster::block_on(result).unwrap();
     env.new_string(format!("{:?}", result)).unwrap().into_raw()
+}
+
+#[unsafe(no_mangle)]
+#[allow(non_snake_case)]
+pub extern "system" fn Java_pers_zhc_android_myapplication_JNI_update(env: JNIEnv, _c: JClass) {
+    info!("update called");
+    let guard = STATE.lock().unwrap();
+    let state = guard.as_ref().unwrap();
+    state.render().unwrap();
 }

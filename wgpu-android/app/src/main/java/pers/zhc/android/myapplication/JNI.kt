@@ -13,6 +13,7 @@ object JNI {
     external fun initWgpu(surface: Surface)
     external fun resize(width: Int, height: Int)
     external fun cleanup()
+    external fun update()
 
     external fun simpleCompute(): String
 

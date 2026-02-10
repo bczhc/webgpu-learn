@@ -3,10 +3,8 @@ package pers.zhc.android.myapplication
 import android.content.Intent
 import android.os.Bundle
 import android.view.SurfaceHolder
-import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import pers.zhc.android.myapplication.databinding.ActivityMainBinding
-import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
     private lateinit var appendLog: (line: String) -> Unit
@@ -28,6 +26,9 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
         bindings.sha256MinerBtn.setOnClickListener {
             startActivity(Intent(this, Sha256MinerActivity::class.java))
         }
+        bindings.btnUpdateSurface.setOnClickListener {
+            JNI.update()
+        }
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
@@ -36,8 +37,10 @@ class MainActivity : AppCompatActivity(), SurfaceHolder.Callback {
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+        JNI.resize(width, height)
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
+        JNI.cleanup()
     }
 }

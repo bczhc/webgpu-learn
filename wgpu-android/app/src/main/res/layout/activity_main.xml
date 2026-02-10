@@ -28,5 +28,11 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Sha256Miner" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnUpdateSurface"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="updateSurface" />
     </LinearLayout>
 </LinearLayout>
